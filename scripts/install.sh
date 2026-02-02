@@ -1,0 +1,147 @@
+#!/bin/bash
+set -e
+
+# Banner
+echo -e "\n\033[1;36m===============================================\033[0m"
+echo -e "\033[1;36m   Flask Todo App CI/CD - Installer            \033[0m"
+echo -e "\033[1;36m   (Docker + Compose + Jenkins on EC2)         \033[0m"
+echo -e "\033[1;36m===============================================\033[0m\n"
+
+# Logging helpers
+info() { echo -e "\033[1;32m[INFO]\033[0m $1"; }
+warn() { echo -e "\033[1;33m[WARN]\033[0m $1"; }
+error() { echo -e "\033[1;31m[ERROR]\033[0m $1"; }
+
+# OS Detection
+info "Detecting operating system..."
+
+if [[ ! -f /etc/os-release ]]; then
+    error "Cannot detect OS (missing /etc/os-release)"
+    exit 1
+fi
+
+. /etc/os-release
+
+case "$ID" in
+ubuntu | debian)
+    PKG=apt
+    ;;
+amzn | rhel | centos | almalinux | rocky)
+    PKG=yum
+    ;;
+*)
+    error "Unsupported OS: $ID"
+    exit 1
+    ;;
+esac
+
+info "Detected OS: $PRETTY_NAME"
+info "Using package manager: $PKG"
+
+# System Update
+info "Updating system packages..."
+
+case $PKG in
+apt)
+    sudo apt update -y
+    ;;
+yum)
+    sudo yum update -y
+    ;;
+esac
+
+# Docker Installation
+if command -v docker &>/dev/null; then
+    info "Docker already installed"
+else
+    info "Installing Docker..."
+
+    case $PKG in
+    apt)
+        sudo apt install -y docker.io
+        ;;
+    yum)
+        sudo yum install -y docker
+        ;;
+    esac
+
+    sudo systemctl start docker
+    sudo systemctl enable docker
+fi
+
+# Docker Permissions
+info "Configuring Docker permissions..."
+
+if groups "$USER" | grep -q docker; then
+    info "User already in docker group"
+else
+    sudo usermod -aG docker "$USER"
+    warn "Docker group added. Log out and log back in required."
+fi
+
+# Docker Compose Installation
+if docker compose version &>/dev/null; then
+    info "Docker Compose already installed"
+else
+    info "Installing Docker Compose..."
+    COMPOSE_VERSION="v2.24.5"
+    sudo curl -SL "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+fi
+
+# Jenkins Installation
+if systemctl list-units --type=service | grep -q jenkins; then
+    info "Jenkins already installed"
+else
+    info "Installing Jenkins..."
+
+    case $PKG in
+    apt)
+        sudo apt install -y openjdk-17-jdk
+        curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee \
+            /usr/share/keyrings/jenkins-keyring.asc >/dev/null
+        echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
+            https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
+            /etc/apt/sources.list.d/jenkins.list
+        sudo apt update -y
+        sudo apt install -y jenkins
+        ;;
+    yum)
+        sudo yum install -y java-17-amazon-corretto
+        sudo wget -O /etc/yum.repos.d/jenkins.repo \
+            https://pkg.jenkins.io/redhat-stable/jenkins.repo
+        sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+        sudo yum install -y jenkins
+        ;;
+    esac
+
+    sudo systemctl start jenkins
+    sudo systemctl enable jenkins
+fi
+
+# Jenkins Docker Access
+info "Granting Jenkins access to Docker..."
+
+if groups jenkins | grep -q docker; then
+    info "Jenkins already in docker group"
+else
+    sudo usermod -aG docker jenkins
+    sudo systemctl restart jenkins
+fi
+
+# Validation
+info "Validating installations..."
+docker --version
+docker-compose --version
+
+# Completion
+echo -e "\n\033[1;36m===============================================\033[0m"
+echo -e "\033[1;36m Installation Complete                         \033[0m"
+echo -e "\033[1;36m-----------------------------------------------\033[0m"
+echo -e "\033[1;36m Next Steps:                                   \033[0m"
+echo -e "\033[1;36m 1. Log out & log back in                     \033[0m"
+echo -e "\033[1;36m 2. Access Jenkins: http://<IP>:8080          \033[0m"
+echo -e "\033[1;36m 3. Get password: sudo cat /var/lib/jenkins/secrets/initialAdminPassword\033[0m"
+echo -e "\033[1;36m 4. Run: ./scripts/start.sh                   \033[0m"
+echo -e "\033[1;36m===============================================\033[0m\n"

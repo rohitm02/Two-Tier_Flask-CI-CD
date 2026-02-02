@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # MySQL Database Container
+  mysql:
+    image: mysql:8.0
+    container_name: todo-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - todo-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Flask Application Container
+  flask-app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: todo-flask-app
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    ports:
+      - "80:5000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - todo-network
+    restart: unless-stopped
+
+# Docker networks for container communication
+networks:
+  todo-network:
+    driver: bridge
+
+# Persistent volume for MySQL data
+volumes:
+  mysql_data:

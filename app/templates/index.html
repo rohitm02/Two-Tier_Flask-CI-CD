@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo App - CI/CD Project</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>📝 My Todo Application</h1>
+        
+        <!-- Add New Todo Form -->
+        <div class="add-section">
+            <h2>Add New Todo</h2>
+            <form method="POST" action="/add">
+                <input 
+                    type="text" 
+                    name="description" 
+                    placeholder="Enter todo description..." 
+                    required 
+                    maxlength="255"
+                />
+                <select name="priority">
+                    <option value="low">Low Priority</option>
+                    <option value="medium" selected>Medium Priority</option>
+                    <option value="high">High Priority</option>
+                </select>
+                <button type="submit">Add Todo</button>
+            </form>
+        </div>
+
+        <!-- Display Todos -->
+        <div class="todos-section">
+            <h2>My Todos ({{ todos|length }})</h2>
+            
+            {% if todos %}
+                <ul class="todo-list">
+                {% for todo in todos %}
+                    <li class="todo-item {% if todo.completed %}completed{% endif %} priority-{{ todo.priority }}">
+                        <div class="todo-content">
+                            <span class="todo-description">{{ todo.description }}</span>
+                            <span class="todo-priority">{{ todo.priority }}</span>
+                            <span class="todo-date">{{ todo.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                        </div>
+                        
+                        <div class="todo-actions">
+                            <!-- Toggle Complete/Uncomplete -->
+                            {% if todo.completed %}
+                                <a href="/uncomplete/{{ todo.id }}" class="btn btn-uncomplete">↩ Undo</a>
+                            {% else %}
+                                <a href="/complete/{{ todo.id }}" class="btn btn-complete">✓ Complete</a>
+                            {% endif %}
+                            
+                            <!-- Edit Form (inline) -->
+                            <form method="POST" action="/update/{{ todo.id }}" class="update-form">
+                                <input 
+                                    type="text" 
+                                    name="description" 
+                                    value="{{ todo.description }}"
+                                    required
+                                    maxlength="255"
+                                />
+                                <select name="priority">
+                                    <option value="low" {% if todo.priority == 'low' %}selected{% endif %}>Low</option>
+                                    <option value="medium" {% if todo.priority == 'medium' %}selected{% endif %}>Medium</option>
+                                    <option value="high" {% if todo.priority == 'high' %}selected{% endif %}>High</option>
+                                </select>
+                                <button type="submit" class="btn btn-update">Update</button>
+                            </form>
+                            
+                            <!-- Delete -->
+                            <a href="/delete/{{ todo.id }}" class="btn btn-delete" onclick="return confirm('Delete this todo?')">🗑 Delete</a>
+                        </div>
+                    </li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <p class="empty-state">No todos yet! Add one above to get started.</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
