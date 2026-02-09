@@ -17,15 +17,14 @@ pipeline {
             }
         }
 
-        stage('Sync Code to App Server') {
+        stage('Pull Latest Code on App Server') {
             steps {
-                echo "Syncing code to app server via rsync..."
+                echo "Pulling latest code on app server from GitHub..."
                 sh '''
-                rsync -avz --delete \
-                  --exclude '.git' \
-                  --exclude '.env' \
-                  -e "ssh -o StrictHostKeyChecking=no" \
-                  ./ ${APP_SERVER_USER}@${APP_SERVER_HOST}:${APP_SERVER_DIR}/
+                ssh -o StrictHostKeyChecking=no ${APP_SERVER_USER}@${APP_SERVER_HOST} "
+                  cd ${APP_SERVER_DIR} && 
+                  git pull origin main
+                "
                 '''
             }
         }
