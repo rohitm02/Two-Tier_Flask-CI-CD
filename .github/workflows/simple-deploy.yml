@@ -1,0 +1,42 @@
+name: Simple Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # Manual trigger button
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Server
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER: 65.2.128.71 # Update with your server's IP
+          APP_SERVER_USER: ubuntu # Update if different
+          APP_SERVER_DIR: /home/ubuntu/Two-Tier_Flask-CI-CD
+        run: |
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/key.pem
+          chmod 600 ~/.ssh/key.pem
+
+          # Deploy
+          ssh -i ~/.ssh/key.pem -o StrictHostKeyChecking=no $APP_SERVER_USER@$SERVER << EOF
+            cd $APP_SERVER_DIR
+            git pull origin main
+            docker compose down
+            docker compose up -d --build
+            docker ps
+          EOF
+
+          # Cleanup
+          rm -f ~/.ssh/key.pem
+
+      - name: Done!
+        run: echo "🚀 Deployed to http://65.2.128.71"

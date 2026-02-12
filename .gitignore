@@ -34,3 +34,9 @@ Thumbs.db
 
 # Jenkins
 jenkins_home/
+
+# GitHub Actions / SSH Keys
+*.pem
+*.key
+id_rsa*
+.github/SSH_KEY_SETUP.md

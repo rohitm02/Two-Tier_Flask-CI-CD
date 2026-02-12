@@ -5,7 +5,7 @@ set -e
 
 echo -e "\n\033[1;36m===============================================\033[0m"
 echo -e "\033[1;36m   Flask + MySQL CI/CD Demo – Installer         \033[0m"
-echo -e "\033[1;36m   (Docker + Compose + Jenkins on EC2)          \033[0m"
+echo -e "\033[1;36m   (Docker + Compose on EC2)                    \033[0m"
 echo -e "\033[1;36m===============================================\033[0m\n"
 
 # Logging helpers
@@ -106,95 +106,6 @@ else
     sudo mv docker-compose /usr/local/bin/docker-compose
 fi
 
-# Jenkins Installation
-
-if systemctl list-units --type=service | grep -q jenkins; then
-    info "Jenkins already installed"
-else
-    info "Installing Jenkins..."
-
-    case $PKG in
-apt)
-        # Base deps + Java
-        sudo apt update -y
-        sudo apt install -y ca-certificates curl gnupg openjdk-17-jdk
-
-        # Clean up any old Jenkins repo/key configuration
-        info "Cleaning up old Jenkins configuration..."
-        sudo rm -f /etc/apt/sources.list.d/jenkins.list
-        sudo rm -f /usr/share/keyrings/jenkins-keyring.asc
-        sudo rm -f /usr/share/keyrings/jenkins-keyring.gpg
-        sudo rm -f /etc/apt/trusted.gpg.d/jenkins.gpg
-        
-        # Remove old keys from apt-key if they exist
-        if sudo apt-key list 2>/dev/null | grep -q jenkins; then
-            warn "Removing old Jenkins keys from deprecated apt-key..."
-            sudo apt-key del 7198F4B714ABFC68 2>/dev/null || true
-        fi
-
-        # Jenkins GPG key (updated method for 2024+)
-        sudo install -d -m 0755 /usr/share/keyrings
-        
-        # Import key in dearmored binary format (.gpg)
-        info "Downloading Jenkins GPG key (2026 key for latest releases)..."
-        if ! curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key | sudo gpg --dearmor -o /usr/share/keyrings/jenkins-keyring.gpg; then
-            warn "2026 key failed, trying 2023 key as fallback..."
-            if ! curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo gpg --dearmor -o /usr/share/keyrings/jenkins-keyring.gpg; then
-                error "Jenkins GPG key installation failed from all sources"
-                exit 1
-            fi
-        fi
-
-        sudo chmod 0644 /usr/share/keyrings/jenkins-keyring.gpg
-
-        # Fail fast if key is missing or empty
-        if [[ ! -s /usr/share/keyrings/jenkins-keyring.gpg ]]; then
-            error "Jenkins GPG key file is empty or missing"
-            exit 1
-        fi
-
-        info "Jenkins GPG key installed successfully"
-
-        # Jenkins repo (using .gpg binary format, not .asc)
-        echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.gpg] https://pkg.jenkins.io/debian-stable binary/" \
-          | sudo tee /etc/apt/sources.list.d/jenkins.list >/dev/null
-
-        # Install Jenkins
-        info "Updating apt cache with Jenkins repo..."
-        sudo apt update -y
-        info "Installing Jenkins..."
-        sudo apt install -y jenkins
-        ;;
-    yum)
-        sudo yum install -y java-17-amazon-corretto
-        sudo wget -O /etc/yum.repos.d/jenkins.repo \
-            https://pkg.jenkins.io/redhat-stable/jenkins.repo
-        sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
-        sudo yum install -y jenkins
-        ;;
-    zypper)
-        sudo zypper install -y java-17-openjdk
-        sudo zypper addrepo https://pkg.jenkins.io/opensuse-stable/ jenkins
-        sudo zypper refresh
-        sudo zypper install -y jenkins
-        ;;
-    esac
-
-    sudo systemctl start jenkins
-    sudo systemctl enable jenkins
-fi
-
-# Jenkins Docker Access
-
-info "Granting Jenkins access to Docker..."
-
-if groups jenkins | grep -q docker; then
-    info "Jenkins already in docker group"
-else
-    sudo usermod -aG docker jenkins
-    sudo systemctl restart jenkins
-fi
-
 # Validation
 
 info "Validating installations..."
@@ -202,7 +113,6 @@ info "Validating installations..."
 docker --version
 docker-compose --version
 systemctl status docker --no-pager
-systemctl status jenkins --no-pager
 
 # Completion
 
@@ -211,6 +121,6 @@ echo -e "\033[1;36m Installation Complete                         \033[0m"
 echo -e "\033[1;36m-----------------------------------------------\033[0m"
 echo -e "\033[1;36m Next Steps:                                   \033[0m"
 echo -e "\033[1;36m 1. Log out & log back in (Docker permissions) \033[0m"
-echo -e "\033[1;36m 2. Configure Jenkins                          \033[0m"
+echo -e "\033[1;36m 2. Create .env file (copy from .env.example)  \033[0m"
 echo -e "\033[1;36m 3. Run ./scripts/start.sh                     \033[0m"
 echo -e "\033[1;36m===============================================\033[0m\n"
