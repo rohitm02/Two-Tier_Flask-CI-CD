@@ -1,25 +1,21 @@
-# Flask Todo App - CI/CD with GitHub Actions
+# Two-Tier Flask Application with CI/CD
 
 [![Deploy](https://github.com/rohitm02/Two-Tier_Flask-CI-CD/actions/workflows/simple-deploy.yml/badge.svg)](https://github.com/rohitm02/Two-Tier_Flask-CI-CD/actions/workflows/simple-deploy.yml)
 
-A two-tier Flask application with MySQL database, fully containerized with Docker and automated CI/CD using GitHub Actions.
+A two-tier Flask application with MySQL database, fully containerized with Docker and automated CI/CD deployment using GitHub Actions.
 
-## 🏗️ Simple Architecture
+## Architecture
 
 ```
 ┌──────────────────┐         ┌─────────────────────────┐
 │  GitHub Actions  │  SSH    │   AWS EC2 Instance      │
-│  (Free Runner)   │────────>│   65.2.128.71           │
+│  Hosted Runner   │────────>│   65.2.128.71           │
 │                  │         │                         │
-│  Builds & Tests  │         │  🐋 Docker Containers:  │
+│  Build & Deploy  │         │  Docker Containers:     │
 └──────────────────┘         │   ├─ Flask App          │
                               │   └─ MySQL Database     │
                               └─────────────────────────┘
-
-  Cost: $0/month               Cost: ~$8.50/month
 ```
-
-**Total monthly cost: ~$8.50** (just one EC2 instance!)
 
 ## Features
 
@@ -30,11 +26,10 @@ A two-tier Flask application with MySQL database, fully containerized with Docke
 - Docker containerization
 - Automated CI/CD pipeline with GitHub Actions
 - Production-ready deployment scripts
-- Single-server architecture (simple & cost-effective)
-
-## Tech Stack
-
-- **Backend:** Flask (Python)
+- Responsive web interface
+- Docker containerization
+- Automated CI/CD pipeline with GitHub Actions
+- Production-ready deployment scripts
 - **Database:** MySQL 8.0
 - **Server:** Gunicorn
 - **Containerization:** Docker, Docker Compose
@@ -44,7 +39,7 @@ A two-tier Flask application with MySQL database, fully containerized with Docke
 ## Project Structure
 
 ```
-flask-todo-cicd/
+- **Deployment:** AWS EC2
 ├── app/                    # Flask application
 │   ├── db/                 # Database connection & initialization
 │   ├── routes/             # API routes
@@ -58,12 +53,11 @@ flask-todo-cicd/
 │   └── entrypoint.sh       # Startup script
 ├── scripts/                # Deployment automation
 │   ├── install.sh          # Install Docker, Jenkins on EC2
+│   ├── start.sh            # Start applicat on EC2
 │   ├── start.sh            # Start application
 │   └── stop.sh             # Stop application
 ├── docker-compose.yml      # Multi-container orchestration
-├── Jenkinsfile             # CI/CD pipeline definition
-└── README.md               # This file
-```
+└── README.md               # Documentation
 
 ## Local Development
 
@@ -114,9 +108,8 @@ docker-compose down
 - Security groups configured:
   - Port 22 (SSH) - Your IP only
   - Port 80 (HTTP) - Public
-  - Port 8080 (Jenkins) - Your IP only
-
-### Deployment Steps
+  - Port 8080 (Je
+  - Port 80 (HTTP)
 
 1. SSH into EC2 instance
 
@@ -150,47 +143,11 @@ cp .env.example .env
 
 7. Access Jenkins:
 
-```
-http://<EC2-PUBLIC-IP>:8080
-```
+```the application at `http://<EC2-PUBLIC-IP>`
 
-8. Get Jenkins initial password:
+## GitHub Actions CI/CD
 
-```bash
-sudo cat /var/lib/jenkins/secrets/initialAdminPassword
-```
-
-## Jenkins CI/CD Pipeline
-
-### Setup
-
-1. Create new Pipeline job in Jenkins
-2. Configure:
-   - **Definition:** Pipeline script from SCM
-   - **SCM:** Git
-   - **Repository URL:** <your-repo-url>
-   - **Branch:** \*/main
-   - **Script Path:** Jenkinsfile
-
-3. Enable GitHub webhook:
-   - GitHub Repo → Settings → Webhooks
-   - Payload URL: `http://<EC2-IP>:8080/github-webhook/`
-   - Content type: `application/json`
-   - Events: Push events
-
-### Pipeline Stages
-
-1. **Checkout Code** - Pull latest from GitHub
-2. **Pre-Deployment Check** - Verify scripts
-3. **Prepare Environment** - Create .env if missing
-4. **Shutdown Existing** - Stop old containers
-5. **Deploy Application** - Start new containers
-
-## GitHub Actions CI/CD (Alternative/Additional Pipeline)
-
-### 🚀 Quick Setup
-
-1. **Add SSH Private Key to GitHub Secrets:**
+### Private Key to GitHub Secrets:**
    - Go to: `Settings → Secrets and variables → Actions`
    - Add secret: `SSH_PRIVATE_KEY`
    - Value: Content of your `.pem` file
@@ -229,50 +186,37 @@ sudo cat /var/lib/jenkins/secrets/initialAdminPassword
 | Setup Time     | 30-60 minutes   | 5 minutes              |
 | Infrastructure | Self-hosted EC2 | GitHub-hosted (free)   |
 | Maintenance    | Required        | Zero                   |
-| Cost           | EC2 instance    | Free (2000 mins/month) |
-| Integration    | Webhook         | Native                 |
+| CosNavigate to repository Settings → Secrets and variables → Actions
+   - Add new secret: `SSH_PRIVATE_KEY`
+   - Value: Content of your EC2 private key file
 
-📖 **Full setup guide:** [GITHUB_ACTIONS_SETUP.md](GITHUB_ACTIONS_SETUP.md)
+2. **Update workflow configuration:**
+   - Edit `.github/workflows/simple-deploy.yml`
+   - Update `SERVER` variable with your EC2 IP address
+   - Update `APP_SERVER_DIR` if using different path
 
-## Database Schema
+3. **Trigger deployment:**
+   ```bash
+   git push origin main
+   ```
 
-```sql
-CREATE TABLE todos (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    description VARCHAR(255) NOT NULL,
-    completed TINYINT(1) DEFAULT 0,
-    priority VARCHAR(10) DEFAULT 'medium',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+### Workflow Features
 
-## API Endpoints
-
-- `GET /` - Display all todos
-- `POST /add` - Add new todo
-- `GET /complete/<id>` - Mark todo as complete
+- Automated deployment on every push to main branch
+- SSH-based deployment to EC2 instance
+- Docker container orchestration
+- Manual trigger option available
 - `GET /uncomplete/<id>` - Mark todo as incomplete
 - `POST /update/<id>` - Update todo
 - `GET /delete/<id>` - Delete todo
+Deployment Process
 
-## Environment Variables
-
-Create `.env` file with:
-
-```bash
-MYSQL_ROOT_PASSWORD=rootpassword123
-MYSQL_DATABASE=tododb
-MYSQL_USER=todouser
-MYSQL_PASSWORD=todopassword
-MYSQL_PORT=3306
-```
-
-## Troubleshooting
-
-**Containers won't start:**
-
-```bash
-docker-compose logs
+1. Code is pushed to main branch
+2. GitHub Actions runner checks out the code
+3. Runner establishes SSH connection to EC2 instance
+4. Latest code is pulled on the server
+5. Docker containers are rebuilt and restarted
+6. Application is live with updated code
 ```
 
 **Permission denied on scripts:**
@@ -313,3 +257,12 @@ DevOps Learning Project
 ## License
 
 MIT License
+Add unit tests with pytest
+- Implement user authentication
+- Push Docker images to container registry
+- Set up monitoring and logging
+- Add resource limits in docker-compose
+- Implement blue-green deployment strategy
+- Add multiple environments (dev/staging/prod)
+- Database migrations with Alembic
+- CI/CD notifications
